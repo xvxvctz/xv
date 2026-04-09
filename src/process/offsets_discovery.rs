@@ -26,8 +26,7 @@ const SIG_LOCAL_PLAYER: &str = "48 83 3D ? ? ? ? 00 0F 95 C0 C3";
 const SIG_VIEW_MATRIX: &str = "C6 83 ? ? 00 00 01 4C 8D 05";
 
 /// `dwPlantedC4` — pointer to the planted bomb entity.
-const SIG_PLANTED_C4: &str =
-    "48 8D 35 ? ? ? ? 66 0F EF C0 C6 05 ? ? ? ? 01 48 8D 3D";
+const SIG_PLANTED_C4: &str = "48 8D 35 ? ? ? ? 66 0F EF C0 C6 05 ? ? ? ? 01 48 8D 3D";
 
 /// `dwGlobalVars` — pointer to the server-side `CGlobalVarsBase` struct.
 const SIG_GLOBAL_VARS: &str = "48 8D 05 ? ? ? ? 48 8B 00 8B 48 ? E9";
@@ -65,29 +64,29 @@ pub fn discover_offsets(process: &mut Process) -> Result<Offsets, ProcessError> 
 
     // Get the actual module base for offset calculations
     let module_base = libs.client;
-    
+
     // ── Direct offsets via pattern scanning ───────────────────────────────────
     let local_player_controller = scan_local_player(process, client, module_base)
         .unwrap_or(fallback.direct.local_player_controller);
 
-    let view_matrix = scan_view_matrix(process, client, _module_base)
+    let view_matrix = scan_view_matrix(process, client, module_base)
         .unwrap_or(fallback.direct.view_matrix);
 
-    let planted_c4 = scan_planted_c4(process, client, _module_base)
+    let planted_c4 = scan_planted_c4(process, client, module_base)
         .unwrap_or(fallback.direct.planted_c4);
 
-    let global_vars = scan_global_vars(process, client, _module_base)
+    let global_vars = scan_global_vars(process, client, module_base)
         .unwrap_or(0);
 
-    let local_player_pawn = scan_local_player_pawn(process, client, _module_base)
+    let local_player_pawn = scan_local_player_pawn(process, client, module_base)
         .unwrap_or(fallback.direct.local_player_pawn);
 
-    let entity_list = scan_entity_list(process, client, _module_base)
+    let entity_list = scan_entity_list(process, client, module_base)
         .unwrap_or(fallback.direct.entity_list);
 
     // Use fallback for controller_pawn_handle - scanning is unreliable
     let controller_pawn_handle = fallback.direct.controller_pawn_handle;
-    eprintln!(["OFFSET] Using controller_pawn_handle: {:#x}", controller_pawn_handle);
+    eprintln!("[OFFSET] Using controller_pawn_handle: {:#x}", controller_pawn_handle);
 
     let direct = Direct {
         entity_list,
@@ -99,7 +98,7 @@ pub fn discover_offsets(process: &mut Process) -> Result<Offsets, ProcessError> 
         global_vars,
         controller_pawn_handle,
     };
-    eprintln!(["OFFSET] Direct struct controller_pawn_handle: {:#x}", direct.controller_pawn_handle);
+    eprintln!("[OFFSET] Direct struct controller_pawn_handle: {:#x}", direct.controller_pawn_handle);
 
     // ── Interface resolution ──────────────────────────────────────────────────
     let interfaces = discover_interfaces(process, &libs);
@@ -120,7 +119,7 @@ pub fn discover_offsets(process: &mut Process) -> Result<Offsets, ProcessError> 
 
 fn discover_libraries(process: &mut Process) -> LibraryOffsets {
     let client_base = process.get_module("libclient.so").unwrap_or(0);
-    eprintln!(["LIBS] libclient.so base: {:#x}", client_base);
+    eprintln!("[LIBS] libclient.so base: {:#x}", client_base);
     LibraryOffsets {
         client: client_base,
         engine: process.get_module("libengine2.so").unwrap_or(0),
@@ -137,29 +136,29 @@ fn discover_libraries(process: &mut Process) -> LibraryOffsets {
 
 /// Scans for `dwLocalPlayerController` using [`SIG_LOCAL_PLAYER`].
 fn scan_local_player(process: &mut Process, client: u64, module_base: u64) -> Option<u64> {
-    eprintln!(["SCAN] Scanning for local_player"]);
+    eprintln!("[SCAN] Scanning for local_player");
     match process.scan(SIG_LOCAL_PLAYER, client, MAX_SCAN_BYTES) {
         Some(hit) => {
             match process.get_relative_address(hit, 3, 8) {
                 Ok(abs) => {
                     let offset = abs - module_base;
-                    eprintln!(["SCAN] Found local_player at offset: {:#x}", offset);
-                    
+                    eprintln!("[SCAN] Found local_player at offset: {:#x}", offset);
+
                     // Sanity check: offset must be within the scan window
                     if offset > MAX_SCAN_BYTES as u64 {
-                        eprintln!(["SCAN] WARNING: offset {:#x} exceeds scan window", offset);
+                        eprintln!("[SCAN] WARNING: offset {:#x} exceeds scan window", offset);
                         return None;
                     }
                     Some(offset)
                 }
                 Err(e) => {
-                    eprintln!(["SCAN] get_relative_address failed: {}", e);
+                    eprintln!("[SCAN] get_relative_address failed: {}", e);
                     None
                 }
             }
         }
         None => {
-            eprintln!(["SCAN] local_player pattern not found"]);
+            eprintln!("[SCAN] local_player pattern not found");
             None
         }
     }
@@ -167,31 +166,31 @@ fn scan_local_player(process: &mut Process, client: u64, module_base: u64) -> Op
 
 /// Scans for `dwViewMatrix` using [`SIG_VIEW_MATRIX`].
 fn scan_view_matrix(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
-    eprintln!(["SCAN] Scanning for view_matrix"]);
+    eprintln!("[SCAN] Scanning for view_matrix");
     let hit = process.scan(SIG_VIEW_MATRIX, client, MAX_SCAN_BYTES)?;
     // Pattern: C6 83 ? ? 00 00 01 4C 8D 05 [rel32]
     // The LEA r8, [rip+rel] is at offset 7
     let lea_addr = hit + 7;
     let abs = process.get_relative_address(lea_addr, 3, 7).ok()?;
-    eprintln!(["SCAN] Found view_matrix at offset: {:#x}", abs - client);
+    eprintln!("[SCAN] Found view_matrix at offset: {:#x}", abs - client);
     Some(abs - client)
 }
 
 /// Scans for `dwPlantedC4` using [`SIG_PLANTED_C4`].
 fn scan_planted_c4(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
-    eprintln!(["SCAN] Scanning for planted_c4"]);
+    eprintln!("[SCAN] Scanning for planted_c4");
     let hit = process.scan(SIG_PLANTED_C4, client, MAX_SCAN_BYTES)?;
     let abs = process.get_relative_address(hit, 3, 7).ok()?;
-    eprintln!(["SCAN] Found planted_c4 at offset: {:#x}", abs - client);
+    eprintln!("[SCAN] Found planted_c4 at offset: {:#x}", abs - client);
     Some(abs - client)
 }
 
 /// Scans for `dwGlobalVars` using [`SIG_GLOBAL_VARS`].
 fn scan_global_vars(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
-    eprintln!(["SCAN] Scanning for global_vars"]);
+    eprintln!("[SCAN] Scanning for global_vars");
     let hit = process.scan(SIG_GLOBAL_VARS, client, MAX_SCAN_BYTES)?;
     let abs = process.get_relative_address(hit, 3, 7).ok()?;
-    eprintln!(["SCAN] Found global_vars at offset: {:#x}", abs - client);
+    eprintln!("[SCAN] Found global_vars at offset: {:#x}", abs - client);
     Some(abs - client)
 }
 
@@ -200,10 +199,10 @@ fn scan_global_vars(process: &mut Process, client: u64, _module_base: u64) -> Op
 const SIG_LOCAL_PLAYER_PAWN: &str = "48 8B 05 ? ? ? ? 48 8B 80 ? ? 00 00";
 
 fn scan_local_player_pawn(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
-    eprintln!(["SCAN] Scanning for local_player_pawn"]);
+    eprintln!("[SCAN] Scanning for local_player_pawn");
     let hit = process.scan(SIG_LOCAL_PLAYER_PAWN, client, MAX_SCAN_BYTES)?;
     let abs = process.get_relative_address(hit, 3, 7).ok()?;
-    eprintln!(["SCAN] Found local_player_pawn at offset: {:#x}", abs - client);
+    eprintln!("[SCAN] Found local_player_pawn at offset: {:#x}", abs - client);
     Some(abs - client)
 }
 
@@ -211,12 +210,12 @@ fn scan_local_player_pawn(process: &mut Process, client: u64, _module_base: u64)
 const SIG_ENTITY_LIST: &str = "48 8D 3D ? ? ? ?";
 
 fn scan_entity_list(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
-    eprintln!(["SCAN] Scanning for entity_list"]);
+    eprintln!("[SCAN] Scanning for entity_list");
     let hit = process.scan(SIG_ENTITY_LIST, client, MAX_SCAN_BYTES)?;
     // LEA rdi, [rip+rel32] - the relative address is at offset 3, size 4
     let abs = process.get_relative_address(hit, 3, 7).ok()?;
     let offset = abs - client;
-    eprintln!(["SCAN] Found entity_list pattern at: {:#x}, calculated offset: {:#x}", abs, offset);
+    eprintln!("[SCAN] Found entity_list pattern at: {:#x}, calculated offset: {:#x}", abs, offset);
     Some(offset)
 }
 
@@ -225,20 +224,20 @@ fn scan_entity_list(process: &mut Process, client: u64, _module_base: u64) -> Op
 /// Extracts the u32 offset at bytes 6-9
 #[allow(dead_code)]
 fn scan_pawn_handle_offset(process: &mut Process, client: u64) -> Option<u64> {
-    eprintln!(["SCAN] Scanning for pawn_handle offset"]);
+    eprintln!("[SCAN] Scanning for pawn_handle offset");
     let hit = process.scan(SIG_PAWN_HANDLE, client, MAX_SCAN_BYTES)?;
-    eprintln!(["SCAN] Found pawn_handle pattern at: {:#x}", hit);
+    eprintln!("[SCAN] Found pawn_handle pattern at: {:#x}", hit);
     // Pattern: 84 C0 75 ? 8B 8F [offset32]
     // Bytes:    0  1  2  3  4  5  6  7  8  9
     // MOV r9, [rdi + offset] is: 8B 8F offset32
     // So offset is at bytes 7-10 (skip 0x8B 0x8F)
     let offset_bytes = process.read_bytes(hit + 7, 4).ok()?;
     let offset = u32::from_le_bytes(offset_bytes.try_into().ok()?) as u64;
-    eprintln!(["SCAN] Extracted pawn_handle offset: {:#x}", offset);
-    
+    eprintln!("[SCAN] Extracted pawn_handle offset: {:#x}", offset);
+
     // Sanity check: should be around 0x7E4
     if offset < 0x100 || offset > 0x2000 {
-        eprintln!(["SCAN] WARNING: offset {:#x} seems wrong, expected ~0x7E4", offset);
+        eprintln!("[SCAN] WARNING: offset {:#x} seems wrong, expected ~0x7E4", offset);
     }
     Some(offset)
 }
