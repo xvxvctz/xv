@@ -68,12 +68,12 @@ fn main() {
         }
     }
 
-    println!("in_game:    {{}}", data.in_game);
-    println!("map:        {{}}", data.map_name);
-    println!("players:    {{}}", data.players.len());
+    println!("in_game:    {}", data.in_game);
+    println!("map:        {}", data.map_name);
+    println!("players:    {}", data.players.len());
     println!(
-        "local hp:   {{}}  name: {{}}",
+        "local hp:   {}  name: {}",
         data.local_player.health, data.local_player.name
     );
-    println!("entities:   {{}}", data.entities.len());
+    println!("entities:   {}", data.entities.len());
 }
