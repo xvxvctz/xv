@@ -136,12 +136,6 @@ fn scan_local_player(process: &mut Process, client: u64, module_base: u64) -> Op
                 Ok(abs) => {
                     let offset = abs - module_base;
                     eprintln!("[SCAN] Found local_player at offset: {:#x}", offset);
-                    
-                    // Sanity check: offset should be within the scan window
-                    if offset > MAX_SCAN_BYTES as u64 {
-                        eprintln!("[SCAN] WARNING: offset {:#x} exceeds scan window", offset);
-                        return None;
-                    }
                     Some(offset)
                 }
                 Err(e) => {
