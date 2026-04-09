@@ -33,9 +33,11 @@ const SIG_PLANTED_C4: &str =
 const SIG_GLOBAL_VARS: &str = "48 8D 05 ? ? ? ? 48 8B 00 8B 48 ? E9";
 
 /// `EntityListOffset` — Entity system list offset (Osiris pattern)
+#[allow(dead_code)]
 const SIG_ENTITY_LIST_LINUX: &str = "4C 8D 6F ? 41 54 53 48 89 FB 48 83 EC ? 48 89 07 48";
 
 /// `OffsetToBasePawnHandle` — Pawn handle offset within controller (Osiris pattern)
+#[allow(dead_code)]
 const SIG_PAWN_HANDLE: &str = "84 C0 75 ? 8B 8F ? ? ? ?";
 
 // ── Scan window ──────────────────────────────────────────────────────────
@@ -143,9 +145,9 @@ fn scan_local_player(process: &mut Process, client: u64, module_base: u64) -> Op
                     let offset = abs - module_base;
                     eprintln!("[SCAN] Found local_player at offset: {:#x}", offset);
                     
-                    // Sanity check: offset should be < 10MB
-                    if offset > 0xA00000 {
-                        eprintln!("[SCAN] WARNING: offset {:#x} seems too large", offset);
+                    // Sanity check: offset should be within the scan window
+                    if offset > MAX_SCAN_BYTES as u64 {
+                        eprintln!("[SCAN] WARNING: offset {:#x} exceeds scan window", offset);
                         return None;
                     }
                     Some(offset)
@@ -164,7 +166,7 @@ fn scan_local_player(process: &mut Process, client: u64, module_base: u64) -> Op
 }
 
 /// Scans for `dwViewMatrix` using [`SIG_VIEW_MATRIX`].
-fn scan_view_matrix(process: &mut Process, client: u64, module_base: u64) -> Option<u64> {
+fn scan_view_matrix(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
     eprintln!("[SCAN] Scanning for view_matrix");
     let hit = process.scan(SIG_VIEW_MATRIX, client, MAX_SCAN_BYTES)?;
     // Pattern: C6 83 ? ? 00 00 01 4C 8D 05 [rel32]
@@ -176,7 +178,7 @@ fn scan_view_matrix(process: &mut Process, client: u64, module_base: u64) -> Opt
 }
 
 /// Scans for `dwPlantedC4` using [`SIG_PLANTED_C4`].
-fn scan_planted_c4(process: &mut Process, client: u64, module_base: u64) -> Option<u64> {
+fn scan_planted_c4(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
     eprintln!("[SCAN] Scanning for planted_c4");
     let hit = process.scan(SIG_PLANTED_C4, client, MAX_SCAN_BYTES)?;
     let abs = process.get_relative_address(hit, 3, 7).ok()?;
@@ -185,7 +187,7 @@ fn scan_planted_c4(process: &mut Process, client: u64, module_base: u64) -> Opti
 }
 
 /// Scans for `dwGlobalVars` using [`SIG_GLOBAL_VARS`].
-fn scan_global_vars(process: &mut Process, client: u64, module_base: u64) -> Option<u64> {
+fn scan_global_vars(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
     eprintln!("[SCAN] Scanning for global_vars");
     let hit = process.scan(SIG_GLOBAL_VARS, client, MAX_SCAN_BYTES)?;
     let abs = process.get_relative_address(hit, 3, 7).ok()?;
@@ -197,7 +199,7 @@ fn scan_global_vars(process: &mut Process, client: u64, module_base: u64) -> Opt
 /// Pattern: `48 8B 05 ? ? ? ? 48 8B 80 ? ? 00 00` (MOV rax, [rip+rel]; MOV rax, [rax+offset])
 const SIG_LOCAL_PLAYER_PAWN: &str = "48 8B 05 ? ? ? ? 48 8B 80 ? ? 00 00";
 
-fn scan_local_player_pawn(process: &mut Process, client: u64, module_base: u64) -> Option<u64> {
+fn scan_local_player_pawn(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
     eprintln!("[SCAN] Scanning for local_player_pawn");
     let hit = process.scan(SIG_LOCAL_PLAYER_PAWN, client, MAX_SCAN_BYTES)?;
     let abs = process.get_relative_address(hit, 3, 7).ok()?;
@@ -208,7 +210,7 @@ fn scan_local_player_pawn(process: &mut Process, client: u64, module_base: u64) 
 /// Pattern for entity list pointer reference - just the LEA instruction
 const SIG_ENTITY_LIST: &str = "48 8D 3D ? ? ? ?";
 
-fn scan_entity_list(process: &mut Process, client: u64, module_base: u64) -> Option<u64> {
+fn scan_entity_list(process: &mut Process, client: u64, _module_base: u64) -> Option<u64> {
     eprintln!("[SCAN] Scanning for entity_list");
     let hit = process.scan(SIG_ENTITY_LIST, client, MAX_SCAN_BYTES)?;
     // LEA rdi, [rip+rel32] - the relative address is at offset 3, size 4
@@ -221,6 +223,7 @@ fn scan_entity_list(process: &mut Process, client: u64, module_base: u64) -> Opt
 /// Scans for pawn handle offset using Osiris pattern
 /// Pattern: `84 C0 75 ? 8B 8F ? ? ? ?` (TEST + JNZ + MOV r9, [rdi+offset])
 /// Extracts the u32 offset at bytes 6-9
+#[allow(dead_code)]
 fn scan_pawn_handle_offset(process: &mut Process, client: u64) -> Option<u64> {
     eprintln!("[SCAN] Scanning for pawn_handle offset");
     let hit = process.scan(SIG_PAWN_HANDLE, client, MAX_SCAN_BYTES)?;
