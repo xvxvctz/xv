@@ -10,7 +10,7 @@
 use std::process as std_process;
 
 use xv::data::Data;
-use xv::process::{offsets_discovery::discover_offsets, Process};
+use xv::process::Process;
 use xv::reader::GameReader;
 
 fn main() {

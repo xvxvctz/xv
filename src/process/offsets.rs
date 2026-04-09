@@ -105,13 +105,17 @@ impl Offsets {
     pub fn load() -> Self {
         Self {
             direct: Direct {
-                entity_list: 0x24B3268,
-                local_player_controller: 0x1856_8B8,
-                local_player_pawn: 0x173F_D20,
-                view_matrix: 0x18D_D5E0,
-                planted_c4: 0x18E_0F28,
+                entity_list: 0x37da2b8,
+                local_player_controller: 0x39999d8,
+                // Scan for local_player_pawn failed; 0 signals "unknown" so
+                // callers fall through to the scanned or interface-derived value.
+                local_player_pawn: 0,
+                view_matrix: 0x39c3e80,
+                planted_c4: 0x37daf60,
+                // game_rules offset has not been re-verified against the current
+                // CS2 build; keep the previous value until confirmed.
                 game_rules: 0x18D_7A40,
-                global_vars: 0,
+                global_vars: 0x378c318,
                 controller_pawn_handle: 0x7E4,
             },
             iface: Interface {
