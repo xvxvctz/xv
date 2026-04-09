@@ -2,7 +2,7 @@
 ///
 /// These offsets change with every CS2 patch and should be updated accordingly.
 /// Offsets are relative to the base address of the containing library.
-
+///
 /// Offsets inside `libclient.so` / direct memory addresses.
 #[derive(Debug, Clone)]
 pub struct Direct {
@@ -63,7 +63,7 @@ pub struct Interface {
     /// `m_modelState` — model state (contains bone data pointer).
     pub scene_node_model_state: u64,
 
-    // ── C_PlantedC4 ──────────────────────────────────────────────────────────
+    // ── C_PlantedC4 ─────────────────────────────────────────────────────────
     /// `m_flC4Blow` — time when bomb explodes.
     pub c4_blow_time: u64,
     /// `m_bBombDefused` — defused flag.
@@ -79,7 +79,7 @@ pub struct Interface {
     /// `m_vecAbsOrigin` on a grenade projectile.
     pub grenade_origin: u64,
 
-    // ── CGameRules ───────────────────────────────────────────────────────────
+    // ── CGameRules ──────────────────────────────────────────────────────────
     /// `m_bFreezePeriod` — true during freeze time.
     pub game_rules_freeze_period: u64,
 }
@@ -105,13 +105,13 @@ impl Offsets {
     pub fn load() -> Self {
         Self {
             direct: Direct {
-                entity_list: 0x24B3268,
-                local_player_controller: 0x1856_8B8,
+                entity_list: 0x37D_A2B8,
+                local_player_controller: 0x399_99D8,
                 local_player_pawn: 0x173F_D20,
-                view_matrix: 0x18D_D5E0,
-                planted_c4: 0x18E_0F28,
+                view_matrix: 0x39C_3E80,
+                planted_c4: 0x37D_AF60,
                 game_rules: 0x18D_7A40,
-                global_vars: 0,
+                global_vars: 0x378_C318,
                 controller_pawn_handle: 0x7E4,
             },
             iface: Interface {
@@ -172,7 +172,6 @@ impl Offsets {
 }
 
 // ── Extended offset types ─────────────────────────────────────────────────────
-
 /// Base addresses of the key CS2 shared libraries.
 ///
 /// All values are set by [`crate::process::offsets_discovery::discover_offsets`]
